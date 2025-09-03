@@ -1,5 +1,6 @@
 package co.com.pragma.usecase.user;
 
+import co.com.pragma.model.exceptions.InvalidUserDataException;
 import co.com.pragma.model.user.User;
 import co.com.pragma.model.user.gateways.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -11,22 +12,13 @@ public class UserUseCase {
     private final UserRepository userRepository;
 
     public Mono<User> saveUser(User user){
-        return userRepository.saveUser(user);
+        return userRepository.getUserByEmail(user.getEmail())
+                .flatMap(existingUser -> Mono.<User>error(new InvalidUserDataException("El correo ya está registrado")))
+                .switchIfEmpty(userRepository.saveUser(user));
     }
 
     public Flux<User> getAllUsers(){
         return userRepository.getAllUsers();
     }
 
-    public Mono<User> getUserByIdNumber(Long idNumber){
-        return userRepository.getUserByIdNumber(idNumber);
-    }
-
-    public Mono<User> editUser(User user){
-        return userRepository.editUser(user);
-    }
-
-    public Mono<Void> deleteUser(Long idNumber){
-        return userRepository.deleteUser(idNumber);
-    }
 }

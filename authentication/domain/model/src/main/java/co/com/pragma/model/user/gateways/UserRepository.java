@@ -7,7 +7,5 @@ import reactor.core.publisher.Mono;
 public interface UserRepository {
     Mono<User> saveUser(User user);
     Flux<User> getAllUsers();
-    Mono<User> getUserByIdNumber(Long idNumber);
-    Mono<User> editUser(User user);
-    Mono<Void> deleteUser(Long IdNumber);
+    Mono<User> getUserByEmail(String email);
 }

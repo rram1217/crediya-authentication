@@ -44,7 +44,7 @@ public class RouterRest {
                         )
                 ),
                 @RouterOperation(
-                        path = "/api/users",
+                        path = "/api/v1/users",
                         method = RequestMethod.POST,
                         beanClass = UserHandler.class,
                         beanMethod = "saveUser",
@@ -80,10 +80,7 @@ public class RouterRest {
         public RouterFunction<ServerResponse> routerFunction(UserHandler handler) {
             return route()
                     .GET("/api/users", handler::getAllUsers)
-                    .POST("/api/users", handler::saveUser)
-                    .GET("/api/users/{id}", handler::getUserByIdNumber)
-                    .PUT("/api/users/{id}", handler::editUser)
-                    .DELETE("/api/users/{id}", handler::deleteUser)
+                    .POST("/api/v1/users", handler::saveUser)
                     .build();
         }
 

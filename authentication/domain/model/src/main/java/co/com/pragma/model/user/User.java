@@ -14,13 +14,12 @@ import java.time.LocalDate;
 @AllArgsConstructor
 @Builder(toBuilder = true)
 public class User {
-    private Long id_usuario;
-    private String nombres;
-    private String apellidos;
-    private LocalDate fecha_nacimiento;
-    private String direccion;
-    private String telefono;
-    private String correo_electronico;
-    private Long id_rol;
-    private BigDecimal salario_base;
+    private String firstName;
+    private String lastName;
+    private LocalDate birthDate;
+    private String address;
+    private String phoneNumber;
+    private String email;
+    private Long rolId;
+    private BigDecimal baseSalary;
 }
