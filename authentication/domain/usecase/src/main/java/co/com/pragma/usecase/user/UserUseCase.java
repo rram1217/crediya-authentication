@@ -14,7 +14,7 @@ public class UserUseCase {
     public Mono<User> saveUser(User user){
         return userRepository.getUserByEmail(user.getEmail())
                 .flatMap(existingUser -> Mono.<User>error(new InvalidUserDataException("El correo ya está registrado")))
-                .switchIfEmpty(userRepository.saveUser(user));
+                .switchIfEmpty(Mono.defer(() -> userRepository.saveUser(user)));
     }
 
     public Flux<User> getAllUsers(){

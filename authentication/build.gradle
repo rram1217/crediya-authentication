@@ -10,6 +10,11 @@ buildscript {
         // 🔑 Dependencias centrales
         r2dbcPostgresVersion = '1.0.2.RELEASE'
         flywayVersion = '10.21.0'
+
+        // 🆕 Agregadas para solucionar el problema de Jackson
+        jacksonVersion = '2.17.2' // Versión compatible con Spring Boot 3.5.4
+        reactorVersion = '3.6.11'
+        mockitoVersion = '5.14.2'
     }
 }
 
@@ -39,16 +44,193 @@ sonar {
 }
 
 allprojects {
+    repositories {
+        mavenCentral()
+    }
+
     tasks.withType(JavaCompile) {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
 }
 
+// 🆕 Configuración centralizada de dependencias para subproyectos
+subprojects {
+    apply plugin: 'java'
+    apply plugin: 'jacoco'
+
+    // 🔧 Gestión centralizada de versiones de dependencias
+    configurations.all {
+        resolutionStrategy {
+            // 🚨 Forzar versiones específicas para evitar conflictos
+            force "com.fasterxml.jackson.datatype:jackson-datatype-jsr310:${jacksonVersion}"
+            force "com.fasterxml.jackson.core:jackson-databind:${jacksonVersion}"
+            force "com.fasterxml.jackson.core:jackson-core:${jacksonVersion}"
+            force "com.fasterxml.jackson.core:jackson-annotations:${jacksonVersion}"
+
+            // Otros forzados para consistencia
+            force "io.projectreactor:reactor-core:${reactorVersion}"
+            force "io.projectreactor:reactor-test:${reactorVersion}"
+            force "org.mockito:mockito-core:${mockitoVersion}"
+            force "org.mockito:mockito-junit-jupiter:${mockitoVersion}"
+        }
+    }
+
+    // 🧪 Configuración de testing para todos los módulos
+    test {
+        useJUnitPlatform()
+        finalizedBy jacocoTestReport
+
+        testLogging {
+            events "passed", "skipped", "failed"
+            exceptionFormat "full"
+            showStandardStreams = false
+        }
+
+        // JVM args para tests
+        jvmArgs = [
+                '-Xmx1g',
+                '-XX:+UseG1GC'
+        ]
+    }
+
+    // 📊 Configuración de JaCoCo por módulo
+    jacocoTestReport {
+        dependsOn test
+
+        reports {
+            xml.required = true
+            html.required = true
+            csv.required = false
+        }
+
+        afterEvaluate {
+            classDirectories.setFrom(files(classDirectories.files.collect {
+                fileTree(dir: it, exclude: [
+                        '**/config/**',
+                        '**/dto/**',
+                        '**/entity/**',
+                        '**/*Application.class',
+                        '**/*Config.class',
+                        '**/*Dto.class',
+                        '**/*Entity.class',
+                        '**/*MapperImpl.class',
+                        '**/*Builder.class',
+                        // Exclusiones específicas para Lombok
+                        '**/User$UserBuilder.class',
+                        // Exclusiones del scaffold de Clean Architecture
+                        '**/ObjectMapper.class',
+                        '**/ObjectMapperConfig.class'
+                ])
+            }))
+        }
+    }
+}
+// 🆕 Reemplaza la sección "configure(subprojects.findAll..." con esta sintaxis moderna:
+
+// Configuración específica para el módulo usecase (SINTAXIS MODERNA)
+project(':usecase') {
+    dependencies {
+        testImplementation "org.springframework.boot:spring-boot-starter-test:${springBootVersion}"
+        testImplementation "io.projectreactor:reactor-test:${reactorVersion}"
+        testImplementation "org.mockito:mockito-core:${mockitoVersion}"
+        testImplementation "org.mockito:mockito-junit-jupiter:${mockitoVersion}"
+    }
+}
+    // 📊 Configuración de cobertura específica para usecase
+    tasks.named('jacocoTestCoverageVerification') {
+        dependsOn tasks.named('jacocoTestReport')
+
+        violationRules {
+            rule {
+                limit {
+                    counter = 'INSTRUCTION'
+                    value = 'COVEREDRATIO'
+                    minimum = 0.85 // 85% para casos de uso
+                }
+            }
+
+            rule {
+                limit {
+                    counter = 'BRANCH'
+                    value = 'COVEREDRATIO'
+                    minimum = 0.80 // 80% de cobertura de ramas
+                }
+            }
+        }
+    }
+
+    // Task específica para verification del usecase
+    tasks.register('verifyUseCase') {
+        group = 'verification'
+        description = 'Ejecuta tests y verifica cobertura del usecase'
+        dependsOn tasks.named('test'), tasks.named('jacocoTestCoverageVerification')
+    }
+
+
+// 🚀 Task personalizada para ejecutar tests del UseCase (SINTAXIS MODERNA)
+tasks.register('testUseCase') {
+    group = 'verification'
+    description = 'Ejecuta tests específicos del módulo usecase'
+    dependsOn ':usecase:test'
+
+    doLast {
+        println "✅ Tests del UseCase completados"
+        println "📊 Reporte: usecase/build/reports/jacoco/test/index.html"
+    }
+}
+
+// 🚀 Task para tests con cobertura de todos los módulos (SINTAXIS MODERNA)
+tasks.register('testWithCoverage') {
+    group = 'verification'
+    description = 'Ejecuta tests de todos los módulos con cobertura'
+
+    // Configuración lazy - solo se evalúa cuando es necesario
+    dependsOn {
+        subprojects.findAll {
+            it.tasks.findByName('test')
+        }.collect { ":${it.name}:test" }
+    }
+
+    finalizedBy {
+        subprojects.findAll {
+            it.tasks.findByName('jacocoTestReport')
+        }.collect { ":${it.name}:jacocoTestReport" }
+    }
+
+    doLast {
+        println "✅ Tests completados en todos los módulos"
+        println "📊 Reportes disponibles en: */build/reports/jacoco/test/"
+    }
+}
+
+// 🚀 Task específica para tu UserUseCaseTest (NUEVA)
+tasks.register('testUserUseCase') {
+    group = 'verification'
+    description = 'Ejecuta específicamente UserUseCaseTest'
+    dependsOn ':usecase:test'
+
+    doFirst {
+        project(':usecase').tasks.test.configure {
+            filter {
+                includeTestsMatching "co.com.pragma.usecase.user.UserUseCaseTest*"
+            }
+        }
+    }
+
+    doLast {
+        println "✅ UserUseCaseTest completado"
+        println "📊 Ver resultados en: usecase/build/reports/tests/test/index.html"
+    }
+}
+// 🔧 Configuración de JaCoCo global (ya existía)
+jacoco {
+    toolVersion = jacocoVersion
+}
+
 dependencies {
-    implementation 'org.springdoc:springdoc-openapi-starter-webflux-ui:2.5.0'
-    implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
-    implementation 'io.swagger.core.v3:swagger-annotations:2.2.36'
+    // 🔧 Dependencia corregida con versión específica
+    implementation "com.fasterxml.jackson.datatype:jackson-datatype-jsr310:${jacksonVersion}"
 }
 
 apply from: './main.gradle'
